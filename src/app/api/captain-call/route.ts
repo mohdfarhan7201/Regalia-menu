@@ -6,11 +6,24 @@ import PushSubscription from "@/lib/db/models/PushSubscription";
 import { auth } from "@/lib/auth";
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_MAILTO ?? "mailto:admin@example.com",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!,
-);
+export const dynamic = "force-dynamic";
+
+function ensureVapidDetails() {
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (publicKey && privateKey) {
+    try {
+      webpush.setVapidDetails(
+        process.env.VAPID_MAILTO ?? "mailto:admin@example.com",
+        publicKey,
+        privateKey,
+      );
+    } catch {
+      // Non-fatal if keys invalid or unconfigured
+    }
+  }
+}
+
 
 // Best-effort per-IP throttle for the PUBLIC call endpoint. In-memory, so it's
 // per warm serverless instance (not global) — a basic spam/DoS speed bump, not
@@ -79,9 +92,11 @@ export async function POST(req: NextRequest) {
     });
 
     try {
+      ensureVapidDetails();
       const subs = await PushSubscription.find({
         role: { $in: ["captain", "admin"] },
       }).lean();
+
       const payload = JSON.stringify({
         title: "🔔 Guest Needs Attention!",
         body: "A guest is requesting assistance",
