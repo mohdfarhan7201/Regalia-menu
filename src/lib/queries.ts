@@ -17,65 +17,93 @@ import type {
 
 // ─── Branding ────────────────────────────────────────────────────────────────
 export const getBranding = cache(async (): Promise<IBranding | null> => {
-  await connectDB();
-  return Branding.findOne({}).lean<IBranding>();
+  try {
+    const db = await connectDB();
+    if (!db) return null;
+    return await Branding.findOne({}).lean<IBranding>();
+  } catch {
+    return null;
+  }
 });
 
 // ─── Menu Data ───────────────────────────────────────────────────────────────
 export const getMenuData = cache(async () => {
-  await connectDB();
-  const [categories, items] = await Promise.all([
-    Category.find({ isActive: true })
-      .sort({ sortOrder: 1, name: 1 })
-      .lean<ICategory[]>(),
-    // Items use `isAvailable` (not `isActive`); `$ne:false` shows everything
-    // except items explicitly marked unavailable, tolerating legacy docs that
-    // predate the field.
-    Item.find({ isAvailable: { $ne: false } })
-      .sort({ sortOrder: 1, name: 1 })
-      .lean<IItem[]>(),
-  ]);
+  try {
+    const db = await connectDB();
+    if (!db) return { categories: [], items: [], itemsByCategory: {} };
+    const [categories, items] = await Promise.all([
+      Category.find({ isActive: true })
+        .sort({ sortOrder: 1, name: 1 })
+        .lean<ICategory[]>(),
+      Item.find({ isAvailable: { $ne: false } })
+        .sort({ sortOrder: 1, name: 1 })
+        .lean<IItem[]>(),
+    ]);
 
-  // Group items by categoryId
-  const itemsByCategory = items.reduce<Record<string, IItem[]>>((acc, item) => {
-    const key = item.categoryId.toString();
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
-    return acc;
-  }, {});
+    // Group items by categoryId
+    const itemsByCategory = items.reduce<Record<string, IItem[]>>((acc, item) => {
+      const key = item.categoryId.toString();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {});
 
-  return { categories, items, itemsByCategory };
+    return { categories, items, itemsByCategory };
+  } catch {
+    return { categories: [], items: [], itemsByCategory: {} };
+  }
 });
 
 // ─── Location ────────────────────────────────────────────────────────────────
 export const getLocationBySlug = async (
   slug: string,
 ): Promise<ILocation | null> => {
-  await connectDB();
-  return Location.findOne({ slug, isActive: true }).lean<ILocation>();
+  try {
+    const db = await connectDB();
+    if (!db) return null;
+    return await Location.findOne({ slug, isActive: true }).lean<ILocation>();
+  } catch {
+    return null;
+  }
 };
 
 export const getLocationByCode = async (
   code: string,
 ): Promise<ILocation | null> => {
-  await connectDB();
-  return Location.findOne({ code, isActive: true }).lean<ILocation>();
+  try {
+    const db = await connectDB();
+    if (!db) return null;
+    return await Location.findOne({ code, isActive: true }).lean<ILocation>();
+  } catch {
+    return null;
+  }
 };
 
 export const getLocationById = async (
   id: string,
 ): Promise<ILocation | null> => {
-  await connectDB();
-  return Location.findById(id).lean<ILocation>();
+  try {
+    const db = await connectDB();
+    if (!db) return null;
+    return await Location.findById(id).lean<ILocation>();
+  } catch {
+    return null;
+  }
 };
 
 export const getAllLocations = cache(async (): Promise<ILocation[]> => {
-  await connectDB();
-  return Location.find({ isActive: true })
-    .collation({ locale: "en_US", numericOrdering: true })
-    .sort({ type: 1, label: 1 })
-    .lean<ILocation[]>();
+  try {
+    const db = await connectDB();
+    if (!db) return [];
+    return await Location.find({ isActive: true })
+      .collation({ locale: "en_US", numericOrdering: true })
+      .sort({ type: 1, label: 1 })
+      .lean<ILocation[]>();
+  } catch {
+    return [];
+  }
 });
+
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 export const getActiveOrders = async (

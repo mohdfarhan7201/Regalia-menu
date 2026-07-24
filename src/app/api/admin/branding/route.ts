@@ -4,6 +4,9 @@ import { connectDB } from "@/lib/db/mongoose";
 import Branding from "@/lib/db/models/Branding";
 import { BrandingSchema } from "@/lib/validations";
 
+export const dynamic = "force-dynamic";
+
+
 /**
  * The DB model uses `restaurantName`; the form/Zod schema uses `hotelName`.
  * These helpers translate between the two so the form always sees `hotelName`

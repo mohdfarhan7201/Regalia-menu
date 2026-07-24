@@ -1,12 +1,6 @@
 import mongoose from "mongoose";
 import { ensureIndexes } from "./indexes";
 
-const MONGODB_URI = process.env.MONGODB_URI!;
-
-if (!MONGODB_URI) {
-  throw new Error("Please define MONGODB_URI in .env.local");
-}
-
 declare global {
   var _mongooseCache: {
     conn: typeof mongoose | null;
@@ -25,7 +19,14 @@ if (!globalWithMongoose._mongooseCache) {
   globalWithMongoose._mongooseCache = { conn: null, promise: null };
 }
 
-export async function connectDB(): Promise<typeof mongoose> {
+export async function connectDB(): Promise<typeof mongoose | null> {
+  const MONGODB_URI = process.env.MONGODB_URI;
+
+  if (!MONGODB_URI) {
+    console.warn("MONGODB_URI is not defined in environment variables.");
+    return null;
+  }
+
   const cache = globalWithMongoose._mongooseCache;
 
   if (cache.conn) return cache.conn;
@@ -36,14 +37,21 @@ export async function connectDB(): Promise<typeof mongoose> {
     });
   }
 
-  cache.conn = await cache.promise;
-
-  // Ensure compound indexes exist (no-op if already created)
   try {
-    await ensureIndexes();
-  } catch {
-    // Non-fatal — indexes may already exist or Atlas may handle them
-  }
+    cache.conn = await cache.promise;
 
-  return cache.conn;
+    // Ensure compound indexes exist (no-op if already created)
+    try {
+      await ensureIndexes();
+    } catch {
+      // Non-fatal — indexes may already exist or Atlas may handle them
+    }
+
+    return cache.conn;
+  } catch (err) {
+    cache.promise = null;
+    console.error("Failed to connect to MongoDB:", err);
+    return null;
+  }
 }
+
